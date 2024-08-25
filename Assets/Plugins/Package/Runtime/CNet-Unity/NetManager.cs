@@ -6,53 +6,47 @@ using CNet;
 using UnityEngine;
 using UnityEngine.Events;
 
-public enum UserType
-{
-    Guest,
-    Host
-}
-
 public class NetManager : MonoBehaviour, IEventNetClient
 {
     [Serializable]
-    public struct Settings
+    public class Settings
     {
         public int MaxPacketSize { get => maxPacketSize; set => maxPacketSize = value; }
         public int BufferSize { get => bufferSize; set => bufferSize = value; }
-        public int maxPacketSize;
-        public int bufferSize;
+        [SerializeField] private int maxPacketSize = 128;
+        [SerializeField] private int bufferSize = 4096;
     }
 
-    [Serializable]
-    public class PacketReceivedEvent : UnityEvent<NetEndPoint, NetPacket, PacketProtocol> { }
-
     public static NetManager Instance { get; private set; }
-
-    //public delegate void PacketHandler(NetPacket packet);
+    public const int MAX_NET_OBJECTS = 32767; // Max size of short
 
     public NetSystem System { get; private set; }
-    public UserType UserType { get; private set; }
     public Guid ID { get; private set; }
     public NetEndPoint RemoteEndPoint { get; private set; }
     public string Address { get => address; set => address = value; }
     public int Port { get => port; set => port = value; }
-    public Settings TCPSettings { get => tCPSettings; }
-    public Settings UDPSettings { get => uDPSettings; }
+    public Settings TCPSettings { get => tcpSettings; }
+    public Settings UDPSettings { get => udpSettings; }
     public bool Connected { get; private set; }
-    public List<SyncedObject> NetObjects { get => netObjets; }
+    public bool IsHost { get; private set; }
+    public Dictionary<int, NetService> NetServices { get; private set; }
+    public Dictionary<int, SyncedObject> NetObjects { get; private set; }
+    public List<SyncedObject> NetPrefabs { get => netPrefabs; }
 
 
     [Header("Network Settings")]
     [SerializeField] private string address = "localhost";
     [SerializeField] private int port = 7777;
-    [SerializeField] private Settings tCPSettings;
-    [SerializeField] private Settings uDPSettings;
+    [SerializeField] private Settings tcpSettings;
+    [SerializeField] private Settings udpSettings;
+
+    [Header("Network Services")]
+    [SerializeField] private List<NetService> netServices;
+
     [Header("Network Objects")]
     [SerializeField] private List<SyncedObject> netObjets;
-    [Space]
-    public PacketReceivedEvent PacketReceived;
+    [SerializeField] private List<SyncedObject> netPrefabs;
 
-    private Dictionary<int, NetService> services;
     private bool isInitialized = false;
 
     void Awake()
@@ -64,8 +58,28 @@ public class NetManager : MonoBehaviour, IEventNetClient
         }
         else
         {
-            Debug.LogError("<color=red><b>CNet</b></color>: There are multiple NetManager instances in the scene, destroying one.");
+            Debug.LogWarning("<color=red><b>CNet</b></color>: There are multiple NetManager instances in the scene, destroying one.");
             Destroy(this);
+        }
+
+        Initialize();
+    }
+
+    private void Initialize()
+    {
+        //Initialize NetServices
+        NetServices = new Dictionary<int, NetService>();
+        for (int i = 0; i < netServices.Count; i++)
+        {
+            NetServices.Add(i, netServices[i]);
+        }
+
+        // Initialize NetObjects
+        NetObjects = new Dictionary<int, SyncedObject>();
+        for (int i = 0; i < netObjets.Count; i++)
+        {
+            NetObjects.Add(i, netObjets[i]);
+            netObjets[i].NetID = i;
         }
     }
 
@@ -73,6 +87,10 @@ public class NetManager : MonoBehaviour, IEventNetClient
     {
         Debug.Log("<color=red><b>CNet</b></color>: Starting NetManager...");
         System = new NetSystem(address, port);
+        System.TCP.MaxPacketSize = tcpSettings.MaxPacketSize;
+        System.TCP.BufferSize = tcpSettings.BufferSize;
+        System.UDP.MaxPacketSize = udpSettings.MaxPacketSize;
+        System.UDP.BufferSize = udpSettings.BufferSize;
         System.RegisterInterface(this);
         System.Connect();
         isInitialized = true;
@@ -90,6 +108,7 @@ public class NetManager : MonoBehaviour, IEventNetClient
 
     void OnDisable()
     {
+        Debug.Log("<color=red><b>CNet</b></color>: NetManager closing...");
         System.Disconnect(RemoteEndPoint);
         System.Close(false);
     }
@@ -105,18 +124,19 @@ public class NetManager : MonoBehaviour, IEventNetClient
     {
         Debug.Log("<color=red><b>CNet</b></color>: NetManager disconnected");
         Connected = false;
+        isInitialized = false;
     }
 
     public void OnPacketReceived(NetEndPoint remoteEndPoint, NetPacket packet, PacketProtocol protocol)
     {
         int serviceID = packet.ReadShort();
-        if (services.TryGetValue(serviceID, out NetService service))
+        if (serviceID > 0 && serviceID < netServices.Count)
         {
-            service.ReceiveData(packet);
+            netServices[serviceID].ReceiveData(packet);
         }
         else
         {
-            PacketReceived.Invoke(remoteEndPoint, packet, protocol);
+            Debug.LogError("<color=red><b>CNet</b></color>: Service with ID " + serviceID + " not found");
         }
     }
 
@@ -130,8 +150,25 @@ public class NetManager : MonoBehaviour, IEventNetClient
         System.Send(RemoteEndPoint, packet, protocol);
     }
 
-    public void RegisterService(int serviceID, NetService service)
+    public void Send(NetPacket packet, PacketProtocol protocol, float delay)
     {
-        services.Add(serviceID, service);
+        StartCoroutine(SendCoroutine(packet, protocol, delay));
+    }
+
+    private IEnumerator SendCoroutine(NetPacket packet, PacketProtocol protocol, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        Send(packet, protocol);
+    }
+
+    internal int GenerateNetID()
+    {
+        int id = UnityEngine.Random.Range(netObjets.Count, MAX_NET_OBJECTS);
+        if (NetObjects.ContainsKey(id))
+        {
+            return GenerateNetID();
+        }
+
+        return id;
     }
 }
