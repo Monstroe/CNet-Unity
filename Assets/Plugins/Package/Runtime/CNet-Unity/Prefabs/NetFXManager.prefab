@@ -44,7 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 219bb88fe6eda81af983d9089b5474d9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sfxPrefab: {fileID: 0}
+  sfxPrefab: {fileID: 8678037592419764856, guid: 54bc3404d51ff02abbbddffc121cddb6, type: 3}
   sfxDirectory: SFX/
-  vfxPrefab: {fileID: 0}
+  vfxPrefab: {fileID: 1803710232314816639, guid: 37c6feefec9f805778e04422e4d3a04e, type: 3}
   vfxDirectory: VFX/

@@ -6,7 +6,7 @@ using UnityEngine;
 
 public class NetBehavior : MonoBehaviour
 {
-    // TODO: COME BACK TO THESE FUNCTIONS AND MAKE SURE THEY ARE IDENTICAL TO THE ORIGINALS
+    //TODO: COME BACK TO THESE FUNCTIONS AND MAKE SURE THEY ARE IDENTICAL TO THE ORIGINALS
     public void NetInstantiate(GameObject original, Action<GameObject> onSpawn = null)
     {
         NetInstantiate(original, original.transform.position, original.transform.rotation, null, onSpawn);

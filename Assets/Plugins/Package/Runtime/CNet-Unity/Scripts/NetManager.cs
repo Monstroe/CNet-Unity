@@ -6,6 +6,12 @@ using CNet;
 using UnityEngine;
 using UnityEngine.Events;
 
+public enum SyncOn
+{
+    ClientSide,
+    ServerSide
+}
+
 public class NetManager : MonoBehaviour, IEventNetClient
 {
     [Serializable]
