@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using CNet;
 using UnityEngine;
 
+[RequireComponent(typeof(NetRigidbody))]
 public class SyncedTransform : SyncedObject
 {
+    [SerializeField] private SyncOn syncOn;
+    [Space]
     [SerializeField] private bool syncPosition;
     [SerializeField] private bool syncRotation;
     [SerializeField] private bool syncScale;
