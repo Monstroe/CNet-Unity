@@ -36,12 +36,4 @@ public class NetRigidbody : MonoBehaviour
             rb.AddForce(force);
         }
     }
-
-    public void MovePostion(Vector3 pos)
-    {
-        if (!NetManager.Instance.IsHost)
-        {
-            rb.MovePosition(pos);
-        }
-    }
 }
