@@ -115,8 +115,11 @@ public class NetManager : MonoBehaviour, IEventNetClient
     void OnDisable()
     {
         Debug.Log("<color=red><b>CNet</b></color>: NetManager closing...");
-        System.Disconnect(RemoteEndPoint);
-        System.Close(false);
+        if (Connected)
+        {
+            System.Disconnect(RemoteEndPoint);
+            System.Close(false);
+        }
     }
 
     public void OnConnected(NetEndPoint remoteEndPoint)

@@ -10,7 +10,9 @@ public class TransformService : NetService
     {
         Position = 0,
         Rotation = 1,
-        Scale = 2
+        Scale = 2,
+        Velocity = 3,
+        AngularVelocity = 4
     }
 
     public override void ReceiveData(NetPacket packet)
@@ -27,18 +29,48 @@ public class TransformService : NetService
 
             if (syncedObj is SyncedTransform)
             {
-                int serviceType = (int)packet.ReadByte();
+                SyncedTransform syncedTran = (SyncedTransform)syncedObj;
+                if (syncedTran.SyncOn == SyncOn.ClientSide)
+                {
+                    return;
+                }
+
+                int serviceType = packet.ReadByte();
                 switch (serviceType)
                 {
-                    case (int)(TransformServiceType.Position):
-                        ((SyncedTransform)syncedObj).SyncPosition((Vector3)packet.DeserializeStruct<NetVector3>());
+                    case (int)TransformServiceType.Position:
+                        syncedTran.SyncPosition((Vector3)packet.DeserializeStruct<NetVector3>(), NetManager.Instance.IsHost);
                         break;
-                    case (int)(TransformServiceType.Rotation):
-                        ((SyncedTransform)syncedObj).SyncRotation((Quaternion)packet.DeserializeStruct<NetQuaternion>());
+                    case (int)TransformServiceType.Rotation:
+                        syncedTran.SyncRotation((Quaternion)packet.DeserializeStruct<NetQuaternion>(), NetManager.Instance.IsHost);
                         break;
-                    case (int)(TransformServiceType.Scale):
-                        ((SyncedTransform)syncedObj).SyncScale((Vector3)packet.DeserializeStruct<NetVector3>());
+                    case (int)TransformServiceType.Scale:
+                        syncedTran.SyncScale((Vector3)packet.DeserializeStruct<NetVector3>(), NetManager.Instance.IsHost);
                         break;
+                    case (int)TransformServiceType.Velocity:
+                        {
+                            if (syncedTran.TryGetComponent(out NetRigidbody netRB))
+                            {
+                                netRB.SyncVelocity((Vector3)packet.DeserializeStruct<NetVector3>(), NetManager.Instance.IsHost);
+                            }
+                            else
+                            {
+                                Debug.LogError("<color=red><b>CNet</b></color>: TransformService cannot sync velocity of NetObject with ID " + netID + " because it doesn't have a NetRigidbody component");
+                            }
+                            break;
+                        }
+                    case (int)TransformServiceType.AngularVelocity:
+                        {
+                            if (syncedTran.TryGetComponent(out NetRigidbody netRB))
+                            {
+                                netRB.SyncAngularVelocity((Vector3)packet.DeserializeStruct<NetVector3>(), NetManager.Instance.IsHost);
+                            }
+                            else
+                            {
+                                Debug.LogError("<color=red><b>CNet</b></color>: TransformService cannot sync angular velocity of NetObject with ID " + netID + " because it doesn't have a NetRigidbody component");
+                            }
+                            break;
+                        }
                 }
             }
             else
