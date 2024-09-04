@@ -1,8 +1,9 @@
 public enum ServiceType
 {
-    Transform = 0,
-    Spawn = 1,
-    Destroy = 2,
-    SFX = 3,
-    VFX = 4
+    Room = 0,
+    Transform = 1,
+    Spawn = 2,
+    Destroy = 3,
+    SFX = 4,
+    VFX = 5
 }
