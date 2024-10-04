@@ -27,14 +27,17 @@ public class NetManager : MonoBehaviour, IEventNetClient
     public const int MAX_NET_OBJECTS = 32767; // Max size of short
 
     public NetSystem System { get; private set; }
-    public Guid ID { get; private set; }
+    public Guid ID { get; internal set; }
+    public int RoomCode { get; internal set; }
+    public List<Guid> RoomMembers { get; internal set; }
     public NetEndPoint RemoteEndPoint { get; private set; }
     public string Address { get => address; set => address = value; }
     public int Port { get => port; set => port = value; }
     public Settings TCPSettings { get => tcpSettings; }
     public Settings UDPSettings { get => udpSettings; }
     public bool Connected { get; private set; }
-    public bool IsHost { get; private set; }
+    public bool IsHost { get; internal set; }
+    public bool InRoom { get; internal set; }
     public Dictionary<int, NetService> NetServices { get; private set; }
     public Dictionary<int, SyncedObject> NetObjects { get; private set; }
     public List<SyncedObject> NetPrefabs { get => netPrefabs; }
@@ -87,6 +90,9 @@ public class NetManager : MonoBehaviour, IEventNetClient
             NetObjects.Add(i, netObjets[i]);
             netObjets[i].NetID = i;
         }
+
+        RoomMembers = new List<Guid>();
+        Reset();
     }
 
     public void Connect()
@@ -101,6 +107,19 @@ public class NetManager : MonoBehaviour, IEventNetClient
         System.Connect();
         isInitialized = true;
         Debug.Log("<color=red><b>CNet</b></color>: NetManager started");
+    }
+
+    internal void Reset()
+    {
+        //isInitialized = false;
+        //Connected = false;
+        //RemoteEndPoint = null;
+        //ID = Guid.Empty;
+        IsHost = false;
+        InRoom = false;
+        RoomCode = -1;
+        RoomMembers.Clear();
+        //System.Close(false);
     }
 
     // Update is called once per frame

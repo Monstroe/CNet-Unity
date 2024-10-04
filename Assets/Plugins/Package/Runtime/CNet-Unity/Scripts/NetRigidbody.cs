@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using CNet;
 using UnityEngine;
 
@@ -7,18 +6,23 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class NetRigidbody : MonoBehaviour
 {
-    [SerializeField] private bool syncVelocity = false;
-    [SerializeField] private bool syncAngularVelocity = false;
-    [Space]
-    [SerializeField] private int syncRate = 10;
+    public bool IsSyncingVelocity { get => syncVelocity; set => syncVelocity = value; }
+    public bool IsSyncingAngularVelocity { get => syncAngularVelocity; set => syncAngularVelocity = value; }
 
     public Vector3 Velocity { get => rb.velocity; set => SyncVelocity(value, syncVelocity, true); }
     public Vector3 AngularVelocity { get => rb.angularVelocity; set => SyncAngularVelocity(value, syncAngularVelocity, true); }
 
+    [SerializeField] private bool syncVelocity = false;
+    [SerializeField] private bool syncAngularVelocity = false;
+    [Space]
+    [SerializeField] private int syncRate = 10;
+    [Space]
+    [SerializeField] private bool clientSidePrediction = false;
+
     private SyncedTransform syncedTransform;
     private Rigidbody rb;
 
-    private void Awake()
+    void Awake()
     {
         syncedTransform = GetComponent<SyncedTransform>();
         rb = GetComponent<Rigidbody>();
@@ -32,7 +36,10 @@ public class NetRigidbody : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        StartCoroutine(UpdateCoroutine());
+        if (NetManager.Instance.IsHost)
+        {
+            StartCoroutine(UpdateCoroutine());
+        }
     }
 
     private IEnumerator UpdateCoroutine()
@@ -41,29 +48,15 @@ public class NetRigidbody : MonoBehaviour
         {
             yield return new WaitForSeconds(1f / syncRate);
 
-            Vector3 newPosition;
-            Quaternion newRotation;
-
-            if (rb.isKinematic)
-            {
-                newPosition = syncedTransform.Position + Velocity * (1f / syncRate);
-                newRotation = syncedTransform.Rotation * Quaternion.Euler(AngularVelocity * (1f / syncRate));
-            }
-            else
-            {
-                newPosition = syncedTransform.Position;
-                newRotation = syncedTransform.Rotation;
-            }
-
-            syncedTransform.Position = newPosition;
-            syncedTransform.Rotation = newRotation;
+            syncedTransform.Position = transform.position;
+            syncedTransform.Rotation = transform.rotation;
         }
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (NetManager.Instance.Connected)
+        if (NetManager.Instance.Connected && !NetManager.Instance.IsHost && syncedTransform.SyncOn == SyncOn.ServerSide && clientSidePrediction)
         {
             if (syncVelocity)
             {
@@ -77,7 +70,7 @@ public class NetRigidbody : MonoBehaviour
         }
     }
 
-    internal void SyncVelocity(Vector3 velocity, bool sync, bool force = false)
+    public void SyncVelocity(Vector3 velocity, bool sync, bool force = false)
     {
         if (!syncVelocity && !force)
         {
@@ -103,7 +96,7 @@ public class NetRigidbody : MonoBehaviour
         }
     }
 
-    internal void SyncAngularVelocity(Vector3 angularVelocity, bool sync, bool force = false)
+    public void SyncAngularVelocity(Vector3 angularVelocity, bool sync, bool force = false)
     {
         if (!syncAngularVelocity && !force)
         {

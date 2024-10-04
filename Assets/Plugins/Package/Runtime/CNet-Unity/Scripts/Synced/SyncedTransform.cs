@@ -6,9 +6,13 @@ using UnityEngine;
 public class SyncedTransform : SyncedObject
 {
     public SyncOn SyncOn { get => syncOn; set => syncOn = value; }
-    public Vector3 Position { get => transform.position; set => SyncPosition(value, true); }
-    public Quaternion Rotation { get => transform.rotation; set => SyncRotation(value, true); }
-    public Vector3 Scale { get => transform.localScale; set => SyncScale(value, true); }
+    public bool IsSyncingPosition { get => syncPosition; set => syncPosition = value; }
+    public bool IsSyncingRotation { get => syncRotation; set => syncRotation = value; }
+    public bool IsSyncingScale { get => syncScale; set => syncScale = value; }
+
+    public Vector3 Position { get => transform.position; set => SyncPosition(value, syncPosition, true); }
+    public Quaternion Rotation { get => transform.rotation; set => SyncRotation(value, syncRotation, true); }
+    public Vector3 Scale { get => transform.localScale; set => SyncScale(value, syncScale, true); }
 
     [SerializeField] private SyncOn syncOn;
     [Space]
@@ -16,9 +20,9 @@ public class SyncedTransform : SyncedObject
     [SerializeField] private bool syncRotation;
     [SerializeField] private bool syncScale;
 
-    internal void SyncPosition(Vector3 pos, bool sync)
+    public void SyncPosition(Vector3 pos, bool sync, bool force = false)
     {
-        if (!syncPosition)
+        if (!syncPosition && !force)
         {
             Debug.LogError("<color=red><b>CNet</b></color>: SyncedTransform is not set to sync position");
             return;
@@ -42,9 +46,9 @@ public class SyncedTransform : SyncedObject
         }
     }
 
-    internal void SyncRotation(Quaternion rot, bool sync)
+    public void SyncRotation(Quaternion rot, bool sync, bool force = false)
     {
-        if (!syncRotation)
+        if (!syncRotation && !force)
         {
             Debug.LogError("<color=red><b>CNet</b></color>: SyncedTransform is not set to sync rotation");
             return;
@@ -68,9 +72,9 @@ public class SyncedTransform : SyncedObject
         }
     }
 
-    internal void SyncScale(Vector3 scl, bool sync)
+    public void SyncScale(Vector3 scl, bool sync, bool force = false)
     {
-        if (!syncScale)
+        if (!syncScale && !force)
         {
             Debug.LogError("<color=red><b>CNet</b></color>: SyncedTransform is not set to sync scale");
             return;
