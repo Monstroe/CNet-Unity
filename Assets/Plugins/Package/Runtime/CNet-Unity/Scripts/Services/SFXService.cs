@@ -4,9 +4,29 @@ using System.Collections.Generic;
 using CNet;
 using UnityEngine;
 
-public class SFXService : NetService
+public class SFXService : MonoBehaviour, NetService
 {
-    public override void ReceiveData(NetPacket packet)
+    void Awake()
+    {
+        RegisterService((int)ServiceType.SFX);
+    }
+
+    void OnDisable()
+    {
+        UnregisterService((int)ServiceType.SFX);
+    }
+
+    public void RegisterService(int serviceID)
+    {
+        NetManager.Instance.RegisterService(serviceID, this);
+    }
+
+    public void UnregisterService(int serviceID)
+    {
+        NetManager.Instance.UnregisterService(serviceID);
+    }
+
+    public void ReceiveData(NetPacket packet)
     {
         try
         {

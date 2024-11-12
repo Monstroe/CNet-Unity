@@ -26,7 +26,7 @@ public class NetFXManager : MonoBehaviour
         else
         {
             Debug.LogWarning("<color=red><b>CNet</b></color>: There are multiple NetFXManager instances in the scene, destroying one.");
-            Destroy(this);
+            Destroy(gameObject);
         }
     }
 

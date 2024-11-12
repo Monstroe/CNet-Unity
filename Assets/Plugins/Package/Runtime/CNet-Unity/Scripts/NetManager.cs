@@ -2,9 +2,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Net.Sockets;
-using CNet;
 using UnityEngine;
 using UnityEngine.Events;
+using CNet;
 
 public enum SyncOn
 {
@@ -15,12 +15,12 @@ public enum SyncOn
 public class NetManager : MonoBehaviour, IEventNetClient
 {
     [Serializable]
-    public class Settings
+    public struct Settings
     {
         public int MaxPacketSize { get => maxPacketSize; set => maxPacketSize = value; }
         public int BufferSize { get => bufferSize; set => bufferSize = value; }
-        [SerializeField] private int maxPacketSize = 128;
-        [SerializeField] private int bufferSize = 4096;
+        [SerializeField] private int maxPacketSize;
+        [SerializeField] private int bufferSize;
     }
 
     public static NetManager Instance { get; private set; }
@@ -38,23 +38,33 @@ public class NetManager : MonoBehaviour, IEventNetClient
     public bool Connected { get; private set; }
     public bool IsHost { get; internal set; }
     public bool InRoom { get; internal set; }
+    public SyncedObject NetPlayer { get => netPlayer; }
+    public SyncedObject NetOtherPlayer { get => netOtherPlayer; }
     public Dictionary<int, NetService> NetServices { get; private set; }
     public Dictionary<int, SyncedObject> NetObjects { get; private set; }
     public List<SyncedObject> NetPrefabs { get => netPrefabs; }
 
 
     [Header("Network Settings")]
-    [SerializeField] private string address = "localhost";
+    [SerializeField] private string address = "127.0.0.1";
     [SerializeField] private int port = 7777;
-    [SerializeField] private Settings tcpSettings;
-    [SerializeField] private Settings udpSettings;
-
-    [Header("Network Services")]
-    [SerializeField] private List<NetService> netServices;
+    [SerializeField] private Settings tcpSettings = new Settings { MaxPacketSize = 128, BufferSize = 4096 };
+    [SerializeField] private Settings udpSettings = new Settings { MaxPacketSize = 128, BufferSize = 4096 };
 
     [Header("Network Objects")]
+    [Tooltip("This prefab still needs to be added to the Net Prefabs list")]
+    [SerializeField] private SyncedObject netPlayer;
+    [Tooltip("This prefab still needs to be added to the Net Prefabs list")]
+    [SerializeField] private SyncedObject netOtherPlayer;
     [SerializeField] private List<SyncedObject> netObjets;
     [SerializeField] private List<SyncedObject> netPrefabs;
+
+    [Header("Network Events")]
+    [Space]
+    public UnityEvent<NetEndPoint> OnConnectedEvent;
+    public UnityEvent<NetEndPoint, NetDisconnect> OnDisconnectedEvent;
+    public UnityEvent<NetEndPoint, NetPacket, PacketProtocol> OnPacketReceivedEvent;
+    public UnityEvent<NetEndPoint, SocketException> OnNetworkErrorEvent;
 
     private bool isInitialized = false;
 
@@ -68,7 +78,7 @@ public class NetManager : MonoBehaviour, IEventNetClient
         else
         {
             Debug.LogWarning("<color=red><b>CNet</b></color>: There are multiple NetManager instances in the scene, destroying one.");
-            Destroy(this);
+            Destroy(gameObject);
         }
 
         Initialize();
@@ -76,13 +86,6 @@ public class NetManager : MonoBehaviour, IEventNetClient
 
     private void Initialize()
     {
-        //Initialize NetServices
-        NetServices = new Dictionary<int, NetService>();
-        for (int i = 0; i < netServices.Count; i++)
-        {
-            NetServices.Add(i, netServices[i]);
-        }
-
         // Initialize NetObjects
         NetObjects = new Dictionary<int, SyncedObject>();
         for (int i = 0; i < netObjets.Count; i++)
@@ -91,8 +94,11 @@ public class NetManager : MonoBehaviour, IEventNetClient
             netObjets[i].NetID = i;
         }
 
+        NetServices = new Dictionary<int, NetService>();
         RoomMembers = new List<Guid>();
         Reset();
+
+        Debug.Log("<color=red><b>CNet</b></color>: NetManager initialized");
     }
 
     public void Connect()
@@ -109,17 +115,20 @@ public class NetManager : MonoBehaviour, IEventNetClient
         Debug.Log("<color=red><b>CNet</b></color>: NetManager started");
     }
 
+    public void Disconnect()
+    {
+        NetPacket packet = new NetPacket(System, PacketProtocol.TCP);
+        packet.Write("Goodbye!");
+        System.Disconnect(RemoteEndPoint, packet);
+        Reset();
+    }
+
     internal void Reset()
     {
-        //isInitialized = false;
-        //Connected = false;
-        //RemoteEndPoint = null;
-        //ID = Guid.Empty;
         IsHost = false;
         InRoom = false;
         RoomCode = -1;
         RoomMembers.Clear();
-        //System.Close(false);
     }
 
     // Update is called once per frame
@@ -136,7 +145,7 @@ public class NetManager : MonoBehaviour, IEventNetClient
         Debug.Log("<color=red><b>CNet</b></color>: NetManager closing...");
         if (Connected)
         {
-            System.Disconnect(RemoteEndPoint);
+            System.DisconnectForcefully(RemoteEndPoint);
             System.Close(false);
         }
     }
@@ -146,31 +155,37 @@ public class NetManager : MonoBehaviour, IEventNetClient
         Debug.Log("<color=red><b>CNet</b></color>: NetManager connected");
         RemoteEndPoint = remoteEndPoint;
         Connected = true;
+        OnConnectedEvent.Invoke(remoteEndPoint);
     }
 
     public void OnDisconnected(NetEndPoint remoteEndPoint, NetDisconnect disconnect)
     {
-        Debug.Log("<color=red><b>CNet</b></color>: NetManager disconnected");
+        Debug.Log("<color=red><b>CNet</b></color>: NetManager disconnected - " + disconnect.DisconnectCode.ToString() + (disconnect.DisconnectCode == DisconnectCode.ConnectionClosedWithMessage ? " (" + disconnect.DisconnectData.ReadString() + ")" : ""));
         Connected = false;
         isInitialized = false;
+        OnDisconnectedEvent.Invoke(remoteEndPoint, disconnect);
     }
 
     public void OnPacketReceived(NetEndPoint remoteEndPoint, NetPacket packet, PacketProtocol protocol)
     {
         int serviceID = packet.ReadShort();
-        if (serviceID > 0 && serviceID < netServices.Count)
+
+        if (NetServices.ContainsKey(serviceID))
         {
-            netServices[serviceID].ReceiveData(packet);
+            NetServices[serviceID].ReceiveData(packet);
         }
         else
         {
             Debug.LogError("<color=red><b>CNet</b></color>: Service with ID " + serviceID + " not found");
         }
+
+        OnPacketReceivedEvent.Invoke(remoteEndPoint, packet, protocol);
     }
 
     public void OnNetworkError(NetEndPoint remoteEndPoint, SocketException socketException)
     {
-        Debug.Log("<color=red><b>CNet</b></color>: Network error - " + socketException.SocketErrorCode.ToString());
+        Debug.Log("<color=red><b>CNet</b></color>: Network error - " + "(" + socketException.SocketErrorCode.ToString() + ") " + socketException.ToString());
+        OnNetworkErrorEvent.Invoke(remoteEndPoint, socketException);
     }
 
     public void Send(NetPacket packet, PacketProtocol protocol)
@@ -187,6 +202,16 @@ public class NetManager : MonoBehaviour, IEventNetClient
     {
         yield return new WaitForSeconds(delay);
         Send(packet, protocol);
+    }
+
+    public void RegisterService(int id, NetService service)
+    {
+        NetServices.Add(id, service);
+    }
+
+    public void UnregisterService(int id)
+    {
+        NetServices.Remove(id);
     }
 
     internal int GenerateNetID()

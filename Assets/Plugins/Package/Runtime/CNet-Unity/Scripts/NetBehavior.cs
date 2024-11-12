@@ -1,8 +1,6 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using CNet;
 using UnityEngine;
+using CNet;
 
 public class NetBehavior : MonoBehaviour
 {
@@ -14,12 +12,19 @@ public class NetBehavior : MonoBehaviour
 
     public void NetInstantiate(GameObject original, Transform parent, Action<GameObject> onSpawn = null)
     {
-        NetInstantiate(original, parent.position, parent.rotation, parent, onSpawn);
+        NetInstantiate(original, parent.position + original.transform.position, parent.rotation * original.transform.rotation, parent, onSpawn);
     }
 
     public void NetInstantiate(GameObject original, Transform parent, bool instantiateInWorldSpace, Action<GameObject> onSpawn = null)
     {
-        NetInstantiate(original, parent.position, parent.rotation, instantiateInWorldSpace ? null : parent, onSpawn);
+        if (instantiateInWorldSpace)
+        {
+            NetInstantiate(original, original.transform.position, original.transform.rotation, parent, onSpawn);
+        }
+        else
+        {
+            NetInstantiate(original, parent.position + original.transform.position, parent.rotation * original.transform.rotation, parent, onSpawn);
+        }
     }
 
     public void NetInstantiate(GameObject original, Vector3 position, Quaternion rotation, Action<GameObject> onSpawn = null)
@@ -27,9 +32,9 @@ public class NetBehavior : MonoBehaviour
         NetInstantiate(original, position, rotation, null, onSpawn);
     }
 
-    public void NetInstantiate(GameObject original, Vector3 position, Quaternion rotation, Transform parent, System.Action<GameObject> onSpawn = null)
+    public void NetInstantiate(GameObject original, Vector3 position, Quaternion rotation, Transform parent, Action<GameObject> onSpawn = null)
     {
-        if (!original.TryGetComponent<SyncedObject>(out SyncedObject syncedPrefab))
+        if (!original.TryGetComponent(out SyncedObject syncedPrefab))
         {
             Debug.LogError("<color=red><b>CNet</b></color>: NetInstantiate cannot instantiate a prefab that doesn't have a SyncedObject component");
             return;
@@ -41,10 +46,15 @@ public class NetBehavior : MonoBehaviour
             return;
         }
 
-        SyncedObject synedParent = null;
-        if (parent != null && !parent.TryGetComponent<SyncedObject>(out synedParent))
+        if (syncedPrefab == NetManager.Instance.NetPlayer)
         {
-            if (!parent.TryGetComponent<SyncedObject>(out synedParent))
+            syncedPrefab = NetManager.Instance.NetOtherPlayer;
+        }
+
+        SyncedObject synedParent = null;
+        if (parent != null && !parent.TryGetComponent(out synedParent))
+        {
+            if (!parent.TryGetComponent(out synedParent))
             {
                 Debug.LogError("<color=red><b>CNet</b></color>: NetInstantiate cannot instantiate a prefab under a parent that doesn't have a SyncedObject component");
                 return;
@@ -62,8 +72,8 @@ public class NetBehavior : MonoBehaviour
         {
             packet.Write((short)ServiceType.Spawn);
             packet.Write((short)NetManager.Instance.NetPrefabs.IndexOf(syncedPrefab));
-            packet.SerializeStruct<NetVector3>((NetVector3)position);
-            packet.SerializeStruct<NetQuaternion>((NetQuaternion)rotation);
+            packet.SerializeStruct((NetVector3)position);
+            packet.SerializeStruct((NetQuaternion)rotation);
 
             if (parent == null)
             {
@@ -78,7 +88,8 @@ public class NetBehavior : MonoBehaviour
             {
                 int netID = NetManager.Instance.GenerateNetID();
                 packet.Write((short)netID);
-                onSpawn.Invoke(((SpawnService)NetManager.Instance.NetServices[(int)ServiceType.Spawn]).SpawnPrefab(netID, original, position, rotation, parent));
+                GameObject obj = ((SpawnService)NetManager.Instance.NetServices[(int)ServiceType.Spawn]).SpawnPrefab(netID, original, position, rotation, parent);
+                onSpawn?.Invoke(obj);
             }
             else
             {
@@ -91,7 +102,7 @@ public class NetBehavior : MonoBehaviour
 
     public void NetDestroy(GameObject obj, float t = 0.0f)
     {
-        if (!obj.TryGetComponent<SyncedObject>(out SyncedObject syncedObj))
+        if (!obj.TryGetComponent(out SyncedObject syncedObj))
         {
             Debug.LogError("<color=red><b>CNet</b></color>: NetDestroy cannot destroy an object that doesn't have a SyncedObject component");
             return;

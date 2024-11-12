@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using CNet;
 using UnityEngine;
 
-public class TransformService : NetService
+public class TransformService : MonoBehaviour, NetService
 {
     public enum TransformServiceType
     {
@@ -15,7 +15,27 @@ public class TransformService : NetService
         AngularVelocity = 4
     }
 
-    public override void ReceiveData(NetPacket packet)
+    void Awake()
+    {
+        RegisterService((int)ServiceType.Transform);
+    }
+
+    void OnDisable()
+    {
+        UnregisterService((int)ServiceType.Transform);
+    }
+
+    public void RegisterService(int serviceID)
+    {
+        NetManager.Instance.RegisterService(serviceID, this);
+    }
+
+    public void UnregisterService(int serviceID)
+    {
+        NetManager.Instance.UnregisterService(serviceID);
+    }
+
+    public void ReceiveData(NetPacket packet)
     {
         try
         {

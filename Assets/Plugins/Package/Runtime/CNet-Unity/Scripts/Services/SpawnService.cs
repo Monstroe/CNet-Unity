@@ -4,11 +4,31 @@ using System.Collections.Generic;
 using CNet;
 using UnityEngine;
 
-public class SpawnService : NetService
+public class SpawnService : MonoBehaviour, NetService
 {
     internal Queue<Action<GameObject>> spawnedPrefabActionCache = new Queue<Action<GameObject>>();
 
-    public override void ReceiveData(NetPacket packet)
+    void Awake()
+    {
+        RegisterService((int)ServiceType.Spawn);
+    }
+
+    void OnDisable()
+    {
+        UnregisterService((int)ServiceType.Spawn);
+    }
+
+    public void RegisterService(int serviceID)
+    {
+        NetManager.Instance.RegisterService(serviceID, this);
+    }
+
+    public void UnregisterService(int serviceID)
+    {
+        NetManager.Instance.UnregisterService(serviceID);
+    }
+
+    public void ReceiveData(NetPacket packet)
     {
         try
         {

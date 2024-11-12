@@ -139,11 +139,21 @@ public class NetRigidbody : MonoBehaviour
         }
     }
 
-    public void MovePostion(Vector3 pos)
+    public void AddForce(float x, float y, float z)
+    {
+        AddForce(new Vector3(x, y, z));
+    }
+
+    public void AddForce(float x, float y, float z, ForceMode mode)
+    {
+        AddForce(new Vector3(x, y, z), mode);
+    }
+
+    /*public void MovePostion(Vector3 pos)
     {
         if (!NetManager.Instance.IsHost)
         {
             rb.MovePosition(pos);
         }
-    }
+    }*/
 }

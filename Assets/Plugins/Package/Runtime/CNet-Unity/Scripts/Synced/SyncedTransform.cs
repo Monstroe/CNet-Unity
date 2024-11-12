@@ -14,11 +14,14 @@ public class SyncedTransform : SyncedObject
     public Quaternion Rotation { get => transform.rotation; set => SyncRotation(value, syncRotation, true); }
     public Vector3 Scale { get => transform.localScale; set => SyncScale(value, syncScale, true); }
 
-    [SerializeField] private SyncOn syncOn;
+    [SerializeField] private SyncOn syncOn = SyncOn.ServerSide;
     [Space]
     [SerializeField] private bool syncPosition;
     [SerializeField] private bool syncRotation;
     [SerializeField] private bool syncScale;
+    [Space]
+    [SerializeField] private bool interpolate = true;
+    [SerializeField] private float interpolationSpeed = 10f;
 
     public void SyncPosition(Vector3 pos, bool sync, bool force = false)
     {
@@ -42,7 +45,7 @@ public class SyncedTransform : SyncedObject
 
         if (!sync || NetManager.Instance.IsHost || syncOn == SyncOn.ClientSide)
         {
-            transform.position = pos;
+            transform.position = interpolate ? Vector3.Lerp(transform.position, pos, interpolationSpeed * Time.deltaTime) : pos;
         }
     }
 
@@ -68,7 +71,7 @@ public class SyncedTransform : SyncedObject
 
         if (!sync || NetManager.Instance.IsHost || syncOn == SyncOn.ClientSide)
         {
-            transform.rotation = rot;
+            transform.rotation = interpolate ? Quaternion.Lerp(transform.rotation, rot, interpolationSpeed * Time.deltaTime) : rot;
         }
     }
 
@@ -94,7 +97,7 @@ public class SyncedTransform : SyncedObject
 
         if (!sync || NetManager.Instance.IsHost || syncOn == SyncOn.ClientSide)
         {
-            transform.localScale = scl;
+            transform.localScale = interpolate ? Vector3.Lerp(transform.localScale, scl, interpolationSpeed * Time.deltaTime) : scl;
         }
     }
 }

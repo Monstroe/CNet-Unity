@@ -1,19 +1,18 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using CNet;
 using UnityEngine;
 using UnityEngine.Events;
+using CNet;
 
-public class RoomService : NetService
+public class RoomService : MonoBehaviour, NetService
 {
-    public UnityEvent OnRoomCreate;
-    public UnityEvent OnRoomJoin;
+    public UnityEvent<int> OnRoomCreate;
+    public UnityEvent<int, Guid[]> OnRoomJoin;
     public UnityEvent OnRoomLeft;
     public UnityEvent OnRoomStart;
     public UnityEvent OnRoomClose;
-    public UnityEvent OnMemberJoin;
-    public UnityEvent OnMemberLeft;
+    public UnityEvent<Guid> OnMemberJoin;
+    public UnityEvent<Guid> OnMemberLeft;
 
     public enum RoomServiceType
     {
@@ -27,7 +26,36 @@ public class RoomService : NetService
         Invalid = 7
     }
 
-    public override void ReceiveData(NetPacket packet)
+    enum ServiceSendType
+    {
+        CreateRoom = 0,
+        JoinRoom = 1,
+        LeaveRoom = 2,
+        StartRoom = 3,
+        CloseRoom = 4
+    }
+
+    void Awake()
+    {
+        RegisterService((int)ServiceType.Room);
+    }
+
+    void OnDisable()
+    {
+        UnregisterService((int)ServiceType.Room);
+    }
+
+    public void RegisterService(int serviceID)
+    {
+        NetManager.Instance.RegisterService(serviceID, this);
+    }
+
+    public void UnregisterService(int serviceID)
+    {
+        NetManager.Instance.UnregisterService(serviceID);
+    }
+
+    public void ReceiveData(NetPacket packet)
     {
         try
         {
@@ -62,7 +90,7 @@ public class RoomService : NetService
                         NetManager.Instance.InRoom = true;
                         NetManager.Instance.IsHost = true;
                         Debug.Log("<color=red><b>CNet</b></color>: Room code received - " + NetManager.Instance.RoomCode);
-                        OnRoomCreate.Invoke();
+                        OnRoomCreate.Invoke(NetManager.Instance.RoomCode);
                         break;
                     }
                 case (int)RoomServiceType.RoomMembers:
@@ -79,6 +107,7 @@ public class RoomService : NetService
                             return;
                         }
 
+                        int roomCode = packet.ReadInt();
                         int count = packet.ReadInt();
                         List<Guid> members = new List<Guid>();
                         for (int i = 0; i < count; i++)
@@ -99,9 +128,12 @@ public class RoomService : NetService
                             }
                         }
 
+                        NetManager.Instance.RoomCode = roomCode;
                         NetManager.Instance.RoomMembers.AddRange(members);
+                        NetManager.Instance.InRoom = true;
+                        NetManager.Instance.IsHost = false;
                         Debug.Log("<color=red><b>CNet</b></color>: Room members received - " + NetManager.Instance.RoomMembers.Count);
-                        OnRoomJoin.Invoke();
+                        OnRoomJoin.Invoke(NetManager.Instance.RoomCode, NetManager.Instance.RoomMembers.ToArray());
                         break;
                     }
                 case (int)RoomServiceType.MemberJoined:
@@ -123,7 +155,7 @@ public class RoomService : NetService
                         }
 
                         Debug.Log("<color=red><b>CNet</b></color>: Member joined - " + memberID);
-                        OnMemberJoin.Invoke();
+                        OnMemberJoin.Invoke(memberID);
                         break;
                     }
                 case (int)RoomServiceType.MemberLeft:
@@ -144,7 +176,7 @@ public class RoomService : NetService
                             }
                             else
                             {
-                                OnMemberLeft.Invoke();
+                                OnMemberLeft.Invoke(memberID);
                             }
                         }
                         else
@@ -195,4 +227,102 @@ public class RoomService : NetService
         }
     }
 
+    public void CreateRoom()
+    {
+        if (NetManager.Instance.InRoom)
+        {
+            Debug.LogError("<color=red><b>CNet</b></color>: RoomService - Host is already in a room, cannot create another room without leaving the current one");
+            return;
+        }
+
+        using (NetPacket packet = new NetPacket(NetManager.Instance.System, PacketProtocol.TCP))
+        {
+            packet.Write((short)ServiceType.Room);
+            packet.Write((short)ServiceSendType.CreateRoom);
+            NetManager.Instance.Send(packet, PacketProtocol.TCP);
+        }
+    }
+
+    public void JoinRoom(int roomID)
+    {
+        if (NetManager.Instance.InRoom)
+        {
+            Debug.LogError("<color=red><b>CNet</b></color>: RoomService - Cannot join a room while already in one");
+            return;
+        }
+
+        using (NetPacket packet = new NetPacket(NetManager.Instance.System, PacketProtocol.TCP))
+        {
+            packet.Write((short)ServiceType.Room);
+            packet.Write((short)ServiceSendType.JoinRoom);
+            packet.Write(roomID);
+            NetManager.Instance.Send(packet, PacketProtocol.TCP);
+        }
+    }
+
+    public void LeaveRoom()
+    {
+        if (!NetManager.Instance.InRoom)
+        {
+            Debug.LogError("<color=red><b>CNet</b></color>: RoomService - Cannot leave a room while not in one");
+            return;
+        }
+
+        if (NetManager.Instance.IsHost)
+        {
+            Debug.LogError("<color=red><b>CNet</b></color>: RoomService - Host cannot leave the room");
+            return;
+        }
+
+        using (NetPacket packet = new NetPacket(NetManager.Instance.System, PacketProtocol.TCP))
+        {
+            packet.Write((short)ServiceType.Room);
+            packet.Write((short)ServiceSendType.LeaveRoom);
+            NetManager.Instance.Send(packet, PacketProtocol.TCP);
+        }
+    }
+
+    public void CloseRoom()
+    {
+        if (!NetManager.Instance.InRoom)
+        {
+            Debug.LogError("<color=red><b>CNet</b></color>: RoomService - Cannot close a room while not in one");
+            return;
+        }
+
+        if (!NetManager.Instance.IsHost)
+        {
+            Debug.LogError("<color=red><b>CNet</b></color>: RoomService - Only the host can close the room");
+            return;
+        }
+
+        using (NetPacket packet = new NetPacket(NetManager.Instance.System, PacketProtocol.TCP))
+        {
+            packet.Write((short)ServiceType.Room);
+            packet.Write((short)ServiceSendType.CloseRoom);
+            NetManager.Instance.Send(packet, PacketProtocol.TCP);
+        }
+    }
+
+    public void StartRoom()
+    {
+        if (!NetManager.Instance.InRoom)
+        {
+            Debug.LogError("<color=red><b>CNet</b></color>: RoomService - Cannot start a room while not in one");
+            return;
+        }
+
+        if (!NetManager.Instance.IsHost)
+        {
+            Debug.LogError("<color=red><b>CNet</b></color>: RoomService - Only the host can start the room");
+            return;
+        }
+
+        using (NetPacket packet = new NetPacket(NetManager.Instance.System, PacketProtocol.TCP))
+        {
+            packet.Write((short)ServiceType.Room);
+            packet.Write((short)ServiceSendType.StartRoom);
+            NetManager.Instance.Send(packet, PacketProtocol.TCP);
+        }
+    }
 }
