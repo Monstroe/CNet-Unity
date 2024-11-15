@@ -871,6 +871,10 @@ PrefabInstance:
       value: NetManager
       objectReference: {fileID: 0}
     - target: {fileID: 2208088557095090372, guid: 630a2b2b1d5f37a438c641d6f1565156, type: 3}
+      propertyPath: address
+      value: 159.65.186.84
+      objectReference: {fileID: 0}
+    - target: {fileID: 2208088557095090372, guid: 630a2b2b1d5f37a438c641d6f1565156, type: 3}
       propertyPath: OnConnectedEvent.m_PersistentCalls.m_Calls.Array.size
       value: 1
       objectReference: {fileID: 0}
