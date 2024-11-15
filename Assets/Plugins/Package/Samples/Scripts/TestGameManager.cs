@@ -10,24 +10,24 @@ public class TestGameManager : NetBehavior
     // Start is called before the first frame update
     void Start()
     {
-        if (NetManager.Instance.IsHost)
+        if (!NetManager.Instance.IsHost)
         {
-            Debug.Log("I am the host");
+            Debug.Log("I am the guest");
             NetInstantiate(testHostPrefab, Vector3.zero, Quaternion.identity, (hostObject) =>
             {
-                Debug.Log("Instantiated host prefab: " + hostObject.name);
+                Debug.Log("Instantiated guest prefab: " + hostObject.name);
                 if (!NetManager.Instance.IsHost)
                 {
                     NetInstantiate(testGuestPrefab, Vector3.zero, Quaternion.identity, (guestObject) =>
                     {
-                        Debug.Log("Instantiated guest prefab: " + guestObject.name);
+                        Debug.Log("Instantiated another guest prefab: " + guestObject.name);
                     });
                 }
             });
         }
         else
         {
-            Debug.Log("I am the guest");
+            Debug.Log("I am the host");
             NetFXManager.Instance.PlaySFX("test.wav", 1.0f);
         }
     }

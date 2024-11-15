@@ -872,8 +872,20 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2208088557095090372, guid: 630a2b2b1d5f37a438c641d6f1565156, type: 3}
       propertyPath: address
-      value: 159.65.186.84
+      value: 127.0.0.1
       objectReference: {fileID: 0}
+    - target: {fileID: 2208088557095090372, guid: 630a2b2b1d5f37a438c641d6f1565156, type: 3}
+      propertyPath: netPrefabs.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2208088557095090372, guid: 630a2b2b1d5f37a438c641d6f1565156, type: 3}
+      propertyPath: netPrefabs.Array.data[0]
+      value: 
+      objectReference: {fileID: 6434596728473676219, guid: 5026a57a670621b44b0dcd11489f05ee, type: 3}
+    - target: {fileID: 2208088557095090372, guid: 630a2b2b1d5f37a438c641d6f1565156, type: 3}
+      propertyPath: netPrefabs.Array.data[1]
+      value: 
+      objectReference: {fileID: 1204642876629805780, guid: bbeb6ff7963e7014bb50e0d768e4d8f9, type: 3}
     - target: {fileID: 2208088557095090372, guid: 630a2b2b1d5f37a438c641d6f1565156, type: 3}
       propertyPath: OnConnectedEvent.m_PersistentCalls.m_Calls.Array.size
       value: 1

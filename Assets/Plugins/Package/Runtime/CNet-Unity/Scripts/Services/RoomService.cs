@@ -95,9 +95,9 @@ public class RoomService : MonoBehaviour, NetService
                     }
                 case (int)RoomServiceType.RoomMembers:
                     {
-                        if (!NetManager.Instance.InRoom)
+                        if (NetManager.Instance.InRoom)
                         {
-                            Debug.LogError("<color=red><b>CNet</b></color>: RoomService - Cannot receive room members without being in a room");
+                            Debug.LogError("<color=red><b>CNet</b></color>: RoomService - Cannot receive room members while already being in another room");
                             return;
                         }
 
